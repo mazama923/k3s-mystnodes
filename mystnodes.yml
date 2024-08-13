@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mystnodes
+  namespace: myst
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mystnodes
+  template:
+    metadata:
+      labels:
+        app: mystnodes
+    spec:
+      containers:
+        - name: mystnodes
+          image: docker.io/mysteriumnetwork/myst:latest
+          ports:
+            - containerPort: 4449
+          securityContext:
+            capabilities:
+              add: ["NET_ADMIN"]
+          command:
+            [
+              "/usr/local/bin/docker-entrypoint.sh",
+              "service",
+              "--agreed-terms-and-conditions",
+            ]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 1
+              memory: 2Gi
+          volumeMounts:
+            - name: mystnodes-pvc
+              mountPath: /var/lib/mysterium-node
+      hostNetwork: true
+      volumes:
+        - name: mystnodes-pvc
+          persistentVolumeClaim:
+            claimName: mystnodes-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mystnodes-pvc
+  namespace: myst
+spec:
+  storageClassName: local-path
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mystnodes-svc
+  namespace: myst
+spec:
+  type: NodePort
+  ports:
+    - name: http
+      port: 4449
+      targetPort: 4449
+      nodePort: 30049
+  selector:
+    app: mystnodes
