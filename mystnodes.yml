@@ -65,8 +65,46 @@ spec:
   type: NodePort
   ports:
     - name: http
-      port: 4449
+      port: 80
       targetPort: 4449
-      nodePort: 30049
   selector:
     app: mystnodes
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mystnodes-ingress
+  namespace: myst
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: mystnodes-ipwhitelist@kubernetescrd # Only if you only want local addresses then go to the dashboard
+spec:
+  tls:
+    - hosts:
+        - your domain name
+      secretName: mystnodes-tls
+  rules:
+    - host: your domain name
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: mystnodes-svc
+                port:
+                  number: 80
+---
+# Only if you only want local addresses then go to the dashboard
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: mystnodes-ipwhitelist
+  namespace: myst
+spec:
+  ipWhiteList:
+    sourceRange:
+      - 192.168.0.0/16  # Replace with your network's local IP range
+      - 192.168.1.0/24  # Replace with your network's local IP range
+      - 127.0.0.1/32    # Allows access from localhost
